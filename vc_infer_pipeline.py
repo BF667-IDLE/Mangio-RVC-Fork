@@ -1,11 +1,18 @@
-import numpy as np, parselmouth, torch, pdb, sys, os
+import numpy as np
+import parselmouth
+import torch
+import pdb
+import sys
+import os
 from time import time as ttime
 import torch.nn.functional as F
 import torchcrepe  # Fork feature. Use the crepe f0 algorithm. New dependency (pip install torchcrepe)
 from torch import Tensor
 import scipy.signal as signal
-import pyworld, os, traceback, faiss, librosa, torchcrepe
-from scipy import signal
+import pyworld
+import traceback
+import faiss
+import librosa
 from functools import lru_cache
 
 now_dir = os.getcwd()
@@ -30,7 +37,7 @@ def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
     return f0
 
 
-def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频,rate是2的占比
+def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频，rate是2的占比
     # print(data1.max(),data2.max())
     rms1 = librosa.feature.rms(
         y=data1, frame_length=sr1 // 2 * 2, hop_length=sr1 // 2
@@ -156,14 +163,32 @@ class VC(object):
         f0 = f0[0].cpu().numpy()
         return f0
 
-    # Fork Feature: Compute pYIN f0 method
-    def get_f0_pyin_computation(self, x, f0_min, f0_max):
-        y, sr = librosa.load("saudio/Sidney.wav", self.sr, mono=True)
-        f0, _, _ = librosa.pyin(y, sr=self.sr, fmin=f0_min, fmax=f0_max)
-        f0 = f0[1:]  # Get rid of extra first frame
-        return f0
+    # Fixed pyin method
+    def get_f0_pyin_computation(self, x, f0_min, f0_max, p_len):
+        """
+        Compute F0 using librosa.pyin and interpolate to match p_len.
+        """
+        # Ensure float32 for librosa
+        x = x.astype(np.float32)
+        f0, voiced_flag, voiced_probs = librosa.pyin(
+            x,
+            sr=self.sr,
+            fmin=f0_min,
+            fmax=f0_max,
+            hop_length=self.window,  # 160 to match our frame rate
+            # frame_length defaults to 2048, which is fine
+        )
+        # pyin returns an array of length = number of frames
+        orig_len = len(f0)
+        if orig_len == p_len:
+            return f0
+        # Interpolate to p_len using linear interpolation on normalized indices
+        x_old = np.linspace(0, 1, orig_len)
+        x_new = np.linspace(0, 1, p_len)
+        f0_interp = np.interp(x_new, x_old, f0)
+        return f0_interp
 
-    # Fork Feature: Acquire median hybrid f0 estimation calculation
+    # Improved hybrid method
     def get_f0_hybrid_computation(
         self,
         methods_str,
@@ -176,9 +201,8 @@ class VC(object):
         crepe_hop_length,
         time_step,
     ):
-        # Get various f0 methods from input to use in the computation stack
-        s = methods_str
-        s = s.split("hybrid")[1]
+        # Parse methods from string like "hybrid[pm+harvest+rmvpe]"
+        s = methods_str.split("hybrid")[1]
         s = s.replace("[", "").replace("]", "")
         methods = s.split("+")
         f0_computation_stack = []
@@ -186,7 +210,7 @@ class VC(object):
         print("Calculating f0 pitch estimations for methods: %s" % str(methods))
         x = x.astype(np.float32)
         x /= np.quantile(np.abs(x), 0.999)
-        # Get f0 calculations for all methods specified
+
         for method in methods:
             f0 = None
             if method == "pm":
@@ -207,10 +231,8 @@ class VC(object):
                     )
             elif method == "crepe":
                 f0 = self.get_f0_official_crepe_computation(x, f0_min, f0_max)
-                f0 = f0[1:]  # Get rid of extra first frame
             elif method == "crepe-tiny":
                 f0 = self.get_f0_official_crepe_computation(x, f0_min, f0_max, "tiny")
-                f0 = f0[1:]  # Get rid of extra first frame
             elif method == "mangio-crepe":
                 f0 = self.get_f0_crepe_computation(
                     x, f0_min, f0_max, p_len, crepe_hop_length
@@ -223,9 +245,8 @@ class VC(object):
                 f0 = cache_harvest_f0(input_audio_path, self.sr, f0_max, f0_min, 10)
                 if filter_radius > 2:
                     f0 = signal.medfilt(f0, 3)
-                f0 = f0[1:]  # Get rid of first frame.
             elif method == "rmvpe":
-                if hasattr(self, "model_rmvpe") == False:
+                if not hasattr(self, "model_rmvpe"):
                     from rmvpe import RMVPE
 
                     print("loading rmvpe model")
@@ -233,8 +254,7 @@ class VC(object):
                         "rmvpe.pt", is_half=self.is_half, device=self.device
                     )
                 f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
-                f0 = f0[1:]  # Get rid of first frame.
-            elif method == "dio":  # Potentially buggy?
+            elif method == "dio":
                 f0, t = pyworld.dio(
                     x.astype(np.double),
                     fs=self.sr,
@@ -244,21 +264,33 @@ class VC(object):
                 )
                 f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.sr)
                 f0 = signal.medfilt(f0, 3)
-                f0 = f0[1:]
-            # elif method == "pyin": Not Working just yet
-            #    f0 = self.get_f0_pyin_computation(x, f0_min, f0_max)
-            # Push method to the stack
-            f0_computation_stack.append(f0)
+            elif method == "pyin":
+                f0 = self.get_f0_pyin_computation(x, f0_min, f0_max, p_len)
+            else:
+                print(f"Warning: Unknown method '{method}' in hybrid, skipping.")
+                continue
 
-        for fc in f0_computation_stack:
-            print(len(fc))
+            if f0 is not None:
+                f0_computation_stack.append(f0)
+
+        # Ensure all arrays have the same length (p_len) via interpolation
+        aligned_stack = []
+        for f0 in f0_computation_stack:
+            if len(f0) != p_len:
+                # Interpolate to p_len using normalized indices
+                orig = np.linspace(0, 1, len(f0))
+                target = np.linspace(0, 1, p_len)
+                f0_aligned = np.interp(target, orig, f0)
+                aligned_stack.append(f0_aligned)
+            else:
+                aligned_stack.append(f0)
 
         print("Calculating hybrid median f0 from the stack of: %s" % str(methods))
-        f0_median_hybrid = None
-        if len(f0_computation_stack) == 1:
-            f0_median_hybrid = f0_computation_stack[0]
+        if len(aligned_stack) == 1:
+            f0_median_hybrid = aligned_stack[0]
         else:
-            f0_median_hybrid = np.nanmedian(f0_computation_stack, axis=0)
+            f0_median_hybrid = np.nanmedian(aligned_stack, axis=0)
+
         return f0_median_hybrid
 
     def get_f0(
@@ -299,7 +331,7 @@ class VC(object):
             f0 = cache_harvest_f0(input_audio_path, self.sr, f0_max, f0_min, 10)
             if filter_radius > 2:
                 f0 = signal.medfilt(f0, 3)
-        elif f0_method == "dio":  # Potentially Buggy?
+        elif f0_method == "dio":
             f0, t = pyworld.dio(
                 x.astype(np.double),
                 fs=self.sr,
@@ -322,7 +354,7 @@ class VC(object):
                 x, f0_min, f0_max, p_len, crepe_hop_length, "tiny"
             )
         elif f0_method == "rmvpe":
-            if hasattr(self, "model_rmvpe") == False:
+            if not hasattr(self, "model_rmvpe"):
                 from rmvpe import RMVPE
 
                 print("loading rmvpe model")
@@ -330,7 +362,8 @@ class VC(object):
                     "rmvpe.pt", is_half=self.is_half, device=self.device
                 )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
-
+        elif f0_method == "pyin":
+            f0 = self.get_f0_pyin_computation(x, f0_min, f0_max, p_len)
         elif "hybrid" in f0_method:
             # Perform hybrid median pitch estimation
             input_audio_path2wav[input_audio_path] = x.astype(np.double)
@@ -407,11 +440,11 @@ class VC(object):
         with torch.no_grad():
             logits = model.extract_features(**inputs)
             feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
-        if protect < 0.5 and pitch != None and pitchf != None:
+        if protect < 0.5 and pitch is not None and pitchf is not None:
             feats0 = feats.clone()
         if (
-            isinstance(index, type(None)) == False
-            and isinstance(big_npy, type(None)) == False
+            index is not None
+            and big_npy is not None
             and index_rate != 0
         ):
             npy = feats[0].cpu().numpy()
@@ -434,7 +467,7 @@ class VC(object):
             )
 
         feats = F.interpolate(feats.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
-        if protect < 0.5 and pitch != None and pitchf != None:
+        if protect < 0.5 and pitch is not None and pitchf is not None:
             feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(
                 0, 2, 1
             )
@@ -442,11 +475,11 @@ class VC(object):
         p_len = audio0.shape[0] // self.window
         if feats.shape[1] < p_len:
             p_len = feats.shape[1]
-            if pitch != None and pitchf != None:
+            if pitch is not None and pitchf is not None:
                 pitch = pitch[:, :p_len]
                 pitchf = pitchf[:, :p_len]
 
-        if protect < 0.5 and pitch != None and pitchf != None:
+        if protect < 0.5 and pitch is not None and pitchf is not None:
             pitchff = pitchf.clone()
             pitchff[pitchf > 0] = 1
             pitchff[pitchf < 1] = protect
@@ -455,7 +488,7 @@ class VC(object):
             feats = feats.to(feats0.dtype)
         p_len = torch.tensor([p_len], device=self.device).long()
         with torch.no_grad():
-            if pitch != None and pitchf != None:
+            if pitch is not None and pitchf is not None:
                 audio1 = (
                     (net_g.infer(feats, p_len, pitch, pitchf, sid)[0][0, 0])
                     .data.cpu()
@@ -485,7 +518,6 @@ class VC(object):
         f0_up_key,
         f0_method,
         file_index,
-        # file_big_npy,
         index_rate,
         if_f0,
         filter_radius,
@@ -499,14 +531,11 @@ class VC(object):
     ):
         if (
             file_index != ""
-            # and file_big_npy != ""
-            # and os.path.exists(file_big_npy) == True
-            and os.path.exists(file_index) == True
+            and os.path.exists(file_index)
             and index_rate != 0
         ):
             try:
                 index = faiss.read_index(file_index)
-                # big_npy = np.load(file_big_npy)
                 big_npy = index.reconstruct_n(0, index.ntotal)
             except:
                 traceback.print_exc()
@@ -536,7 +565,7 @@ class VC(object):
         audio_pad = np.pad(audio, (self.t_pad, self.t_pad), mode="reflect")
         p_len = audio_pad.shape[0] // self.window
         inp_f0 = None
-        if hasattr(f0_file, "name") == True:
+        if f0_file is not None and hasattr(f0_file, "name"):
             try:
                 with open(f0_file.name, "r") as f:
                     lines = f.read().strip("\n").split("\n")
