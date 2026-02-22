@@ -1986,8 +1986,8 @@ def whethercrepeornah(radio):
 
 
 # Change your Gradio Theme here. 👇 👇 👇 👇 Example: " theme='HaleyCH/HaleyCH_Theme' "
-with gr.Blocks(theme=gr.themes.Soft(), title="Mangio-RVC-Web 💻") as app:
-    gr.HTML("<h1> The Mangio-RVC-Fork 💻 </h1>")
+with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
+    gr.HTML("<h1> The Mangio RVC Fork 💻 </h1>")
     gr.Markdown(
         value=i18n(
             "本软件以MIT协议开源, 作者不对软件具备任何控制力, 使用软件者、传播软件导出的声音者自负全责. <br>如不认可该条款, 则不能使用或引用软件包内任何代码和文件. 详见根目录<b>使用需遵守的协议-LICENSE.txt</b>."
@@ -1995,13 +1995,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Mangio-RVC-Web 💻") as app:
     )
     with gr.Tabs():
         with gr.TabItem(i18n("模型推理")):
-            # Inference Preset Row
-            # with gr.Row():
-            #     mangio_preset = gr.Dropdown(label="Inference Preset", choices=sorted(get_presets()))
-            #     mangio_preset_name_save = gr.Textbox(
-            #         label="Your preset name"
-            #     )
-            #     mangio_preset_save_btn = gr.Button('Save Preset', variant="primary")
 
             # Other RVC stuff
             with gr.Row():
@@ -2308,11 +2301,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Mangio-RVC-Web 💻") as app:
                             inputs=[],
                             outputs=file_index4,
                         )
-                        # file_big_npy2 = gr.Textbox(
-                        #     label=i18n("特征文件路径"),
-                        #     value="E:\\codes\\py39\\vits_vc_gpu_train\\logs\\mi-test-1key\\total_fea.npy",
-                        #     interactive=True,
-                        # )
                         index_rate2 = gr.Slider(
                             minimum=0,
                             maximum=1,
@@ -2727,30 +2715,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Mangio-RVC-Web 💻") as app:
 
                     but4.click(train_index, [exp_dir1, version19], info3)
 
-                    # but5.click(
-                    #    train1key,
-                    #    [
-                    #        exp_dir1,
-                    #        sr2,
-                    #        if_f0_3,
-                    #        trainset_dir4,
-                    #        spk_id5,
-                    #        np7,
-                    #        f0method8,
-                    #        save_epoch10,
-                    #        total_epoch11,
-                    #        batch_size12,
-                    #        if_save_latest13,
-                    #        pretrained_G14,
-                    #        pretrained_D15,
-                    #        gpus16,
-                    #        if_cache_gpu17,
-                    #        if_save_every_weights18,
-                    #        version19,
-                    #        extraction_crepe_hop_length
-                    #    ],
-                    #    info3,
-                    # )
+
+        
 
         with gr.TabItem(i18n("ckpt处理")):
             with gr.Group():
@@ -3025,59 +2991,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Mangio-RVC-Web 💻") as app:
             # returning_preset['f0_file_path']
         )
 
-    # Preset State Changes
-
-    # This click calls save_preset that saves the preset into inference-presets.json with the preset name
-    # mangio_preset_save_btn.click(
-    #     fn=save_preset,
-    #     inputs=[
-    #         mangio_preset_name_save,
-    #         sid0,
-    #         vc_transform0,
-    #         input_audio0,
-    #         f0method0,
-    #         crepe_hop_length,
-    #         filter_radius0,
-    #         file_index1,
-    #         file_index2,
-    #         index_rate1,
-    #         resample_sr0,
-    #         rms_mix_rate0,
-    #         protect0,
-    #         f0_file
-    #     ],
-    #     outputs=[]
-    # )
-
-    # mangio_preset.change(
-    #     on_preset_changed,
-    #     inputs=[
-    #         # Pass inputs here
-    #         mangio_preset
-    #     ],
-    #     outputs=[
-    #         # Pass Outputs here. These refer to the gradio elements that we want to directly change
-    #         # sid0,
-    #         # vc_transform0,
-    #         # input_audio0,
-    #         # f0method0,
-    #         # crepe_hop_length,
-    #         # filter_radius0,
-    #         # file_index1,
-    #         # file_index2,
-    #         # index_rate1,
-    #         # resample_sr0,
-    #         # rms_mix_rate0,
-    #         # protect0,
-    #         # f0_file
-    #     ]
-    # )
-    # endregion
-
-    # with gr.TabItem(i18n("招募音高曲线前端编辑器")):
-    #     gr.Markdown(value=i18n("加开发群联系我xxxxx"))
-    # with gr.TabItem(i18n("点击查看交流、问题反馈群号")):
-    #     gr.Markdown(value=i18n("xxxxx"))
 
     if (
         config.iscolab or config.paperspace
@@ -3092,3 +3005,4 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Mangio-RVC-Web 💻") as app:
         )
 
 # endregion
+
