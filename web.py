@@ -2995,9 +2995,9 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
     if (
         config.iscolab or config.paperspace
     ):  # Share gradio link for colab and paperspace (FORK FEATURE)
-        app.queue(concurrency_count=511, max_size=1022).launch(share=True)
+        app.launch(share=True)
     else:
-        app.queue(concurrency_count=511, max_size=1022).launch(
+        app.launch(
             server_name="0.0.0.0",
             inbrowser=not config.noautoopen,
             server_port=config.listen_port,
@@ -3005,4 +3005,5 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
         )
 
 # endregion
+
 
