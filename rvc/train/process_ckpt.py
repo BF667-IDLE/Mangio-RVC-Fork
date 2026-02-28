@@ -3,7 +3,7 @@ import torch, traceback, os, pdb, sys
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 from collections import OrderedDict
-from rvc.i18n.i18n import I18nAuto
+from i18n.i18n import I18nAuto
 
 i18n = I18nAuto()
 
