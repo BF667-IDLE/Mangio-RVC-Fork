@@ -1,4 +1,4 @@
-import sys, os, multiprocessing
+import sys, os
 from scipy import signal
 
 now_dir = os.getcwd()
@@ -8,10 +8,10 @@ inp_root = sys.argv[1]
 sr = int(sys.argv[2])
 n_p = int(sys.argv[3])
 exp_dir = sys.argv[4]
-noparallel = sys.argv[5] == "True"
-import numpy as np, os, traceback
+noparallel = sys.argv[5] == "True" if len(sys.argv) > 5 else False
+import numpy as np, traceback
 from slicer2 import Slicer
-import librosa, traceback
+import librosa
 from scipy.io import wavfile
 import multiprocessing
 from my_utils import load_audio
@@ -58,21 +58,25 @@ class PreProcess:
         os.makedirs(self.wavs16k_dir, exist_ok=True)
 
     def norm_write(self, tmp_audio, idx0, idx1):
+        if len(tmp_audio) == 0:  # Bug fix: Check for empty audio
+            return
+            
         tmp_max = np.abs(tmp_audio).max()
         if tmp_max > 2.5:
             print("%s-%s-%s-filtered" % (idx0, idx1, tmp_max))
             return
-        tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (
-            1 - self.alpha
-        ) * tmp_audio
+        if tmp_max > 0:  # Bug fix: Avoid division by zero
+            tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (
+                1 - self.alpha
+            ) * tmp_audio
         wavfile.write(
             "%s/%s_%s.wav" % (self.gt_wavs_dir, idx0, idx1),
             self.sr,
             tmp_audio.astype(np.float32),
         )
         tmp_audio = librosa.resample(
-            tmp_audio, orig_sr=self.sr, target_sr=16000
-        )  # , res_type="soxr_vhq"
+            tmp_audio, orig_sr=self.sr, target_sr=16000, res_type='kaiser_best'  # Bug fix: Added res_type parameter
+        )
         wavfile.write(
             "%s/%s_%s.wav" % (self.wavs16k_dir, idx0, idx1),
             16000,
@@ -84,53 +88,82 @@ class PreProcess:
             audio = load_audio(path, self.sr, DoFormant, Quefrency, Timbre)
             # zero phased digital filter cause pre-ringing noise...
             # audio = signal.filtfilt(self.bh, self.ah, audio)
-            audio = signal.lfilter(self.bh, self.ah, audio)
+            if len(audio) > 0:  # Bug fix: Check if audio is not empty
+                audio = signal.lfilter(self.bh, self.ah, audio)
 
-            idx1 = 0
-            for audio in self.slicer.slice(audio):
-                i = 0
-                while 1:
-                    start = int(self.sr * (self.per - self.overlap) * i)
-                    i += 1
-                    if len(audio[start:]) > self.tail * self.sr:
-                        tmp_audio = audio[start : start + int(self.per * self.sr)]
-                        self.norm_write(tmp_audio, idx0, idx1)
-                        idx1 += 1
-                    else:
-                        tmp_audio = audio[start:]
-                        idx1 += 1
-                        break
-                self.norm_write(tmp_audio, idx0, idx1)
-            # println("%s->Suc." % path)
-        except:
+                idx1 = 0
+                slices = list(self.slicer.slice(audio))  # Bug fix: Convert generator to list to avoid exhaustion
+                
+                for audio_slice in slices:
+                    i = 0
+                    while True:
+                        start = int(self.sr * (self.per - self.overlap) * i)
+                        i += 1
+                        start_idx = start
+                        end_idx = start + int(self.per * self.sr)
+                        
+                        if len(audio_slice[start_idx:]) > self.tail * self.sr:
+                            if end_idx <= len(audio_slice):  # Bug fix: Check bounds
+                                tmp_audio = audio_slice[start_idx:end_idx]
+                                self.norm_write(tmp_audio, idx0, idx1)
+                                idx1 += 1
+                        else:
+                            if start_idx < len(audio_slice):  # Bug fix: Check bounds
+                                tmp_audio = audio_slice[start_idx:]
+                                self.norm_write(tmp_audio, idx0, idx1)
+                                idx1 += 1
+                            break
+                println("%s->Suc." % path)
+        except Exception as e:
             println("%s->%s" % (path, traceback.format_exc()))
 
     def pipeline_mp(self, infos, thread_n):
         for path, idx0 in tqdm.tqdm(
-            infos, position=thread_n, leave=True, desc="thread:%s" % thread_n
+            infos, position=thread_n, leave=False, desc="thread:%s" % thread_n  # Bug fix: Changed leave to False
         ):
             self.pipeline(path, idx0)
 
     def pipeline_mp_inp_dir(self, inp_root, n_p):
         try:
+            file_list = sorted(list(os.listdir(inp_root)))
+            if not file_list:  # Bug fix: Check if directory is empty
+                println("No files found in input directory")
+                return
+                
             infos = [
-                ("%s/%s" % (inp_root, name), idx)
-                for idx, name in enumerate(sorted(list(os.listdir(inp_root))))
+                (os.path.join(inp_root, name), idx)  # Bug fix: Use os.path.join for cross-platform compatibility
+                for idx, name in enumerate(file_list)
             ]
             if noparallel:
+                # Bug fix: Correct the slicing logic for noparallel mode
+                chunk_size = len(infos) // n_p + (1 if len(infos) % n_p else 0)
                 for i in range(n_p):
-                    self.pipeline_mp(infos[i::n_p])
+                    start_idx = i * chunk_size
+                    end_idx = min((i + 1) * chunk_size, len(infos))
+                    if start_idx < len(infos):
+                        self.pipeline_mp(infos[start_idx:end_idx], i)
             else:
                 ps = []
                 for i in range(n_p):
+                    # Bug fix: Properly slice infos for each process
+                    chunk_size = len(infos) // n_p + (1 if i < len(infos) % n_p else 0)
+                    start_idx = sum(chunk_size for j in range(i))
+                    end_idx = start_idx + chunk_size
+                    
                     p = multiprocessing.Process(
-                        target=self.pipeline_mp, args=(infos[i::n_p], i)
+                        target=self.pipeline_mp, args=(infos[start_idx:end_idx], i)
                     )
                     ps.append(p)
                     p.start()
-                for i in range(n_p):
-                    ps[i].join()
-        except:
+                
+                # Bug fix: Add timeout to avoid hanging
+                for i, p in enumerate(ps):
+                    p.join(timeout=300)  # 5 minute timeout
+                    if p.is_alive():
+                        println(f"Process {i} timed out, terminating...")
+                        p.terminate()
+                        p.join()
+        except Exception as e:
             println("Fail. %s" % traceback.format_exc())
 
 
@@ -140,7 +173,13 @@ def preprocess_trainset(inp_root, sr, n_p, exp_dir):
     println(sys.argv)
     pp.pipeline_mp_inp_dir(inp_root, n_p)
     println("end preprocess")
+    f.close()  # Bug fix: Close the log file
 
 
 if __name__ == "__main__":
+    # Bug fix: Check command line arguments
+    if len(sys.argv) < 6:
+        print("Usage: python trainset_preprocess_pipeline_print.py <inp_root> <sr> <n_p> <exp_dir> <noparallel>")
+        sys.exit(1)
+    
     preprocess_trainset(inp_root, sr, n_p, exp_dir)
