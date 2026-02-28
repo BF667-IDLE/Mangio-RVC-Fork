@@ -24,6 +24,7 @@ faiss-cpu>=1.7.3; python_version >= "3.12"
 transformers>=4.49.0
 scikit-learn
 einops>=0.8.0
+pytorch
 
 # Pitch and sound processing
 librosa>=0.10.2
