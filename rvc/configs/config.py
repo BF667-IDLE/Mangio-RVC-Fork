@@ -100,6 +100,7 @@ class Config:
         self.n_cpu = 0
         self.gpu_name = None
         self.gpu_mem = None
+        # Update to unpack 8 values
         (
             self.python_cmd,
             self.listen_port,
@@ -108,6 +109,7 @@ class Config:
             self.noautoopen,
             self.paperspace,
             self.is_cli,
+            self.config_version,  # Add this variable to store the config version
         ) = self.arg_parse()
 
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
