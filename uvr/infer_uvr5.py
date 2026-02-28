@@ -10,12 +10,12 @@ import importlib
 import numpy as np
 import hashlib, math
 from tqdm import tqdm
-from lib.uvr5_pack.lib_v5 import spec_utils
-from lib.uvr5_pack.utils import _get_name_params, inference
-from lib.uvr5_pack.lib_v5.model_param_init import ModelParameters
+from uvr.lib_v5 import spec_utils
+from uvr.utils import _get_name_params, inference
+from uvr.lib_v5.model_param_init import ModelParameters
 import soundfile as sf
-from lib.uvr5_pack.lib_v5.nets_new import CascadedNet
-from lib.uvr5_pack.lib_v5 import nets_61968KB as nets
+from uvr.lib_v5.nets_new import CascadedNet
+from uvr.lib_v5 import nets_61968KB as nets
 
 
 class _audio_pre_:
@@ -31,7 +31,7 @@ class _audio_pre_:
             "agg": agg,
             "high_end_process": "mirroring",
         }
-        mp = ModelParameters("lib/uvr5_pack/lib_v5/modelparams/4band_v2.json")
+        mp = ModelParameters("uvr/lib_v5/modelparams/4band_v2.json")
         model = nets.CascadedASPPNet(mp.param["bins"] * 2)
         cpk = torch.load(model_path, map_location="cpu")
         model.load_state_dict(cpk)
@@ -195,7 +195,7 @@ class _audio_pre_new:
             "agg": agg,
             "high_end_process": "mirroring",
         }
-        mp = ModelParameters("lib/uvr5_pack/lib_v5/modelparams/4band_v3.json")
+        mp = ModelParameters("uvr/lib_v5/modelparams/4band_v3.json")
         nout = 64 if "DeReverb" in model_path else 48
         model = CascadedNet(mp.param["bins"] * 2, nout)
         cpk = torch.load(model_path, map_location="cpu")
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     # model_path = "uvr5_weights/2_HP-UVR.pth"
     # model_path = "uvr5_weights/VR-DeEchoDeReverb.pth"
     # model_path = "uvr5_weights/VR-DeEchoNormal.pth"
-    model_path = "uvr5_weights/DeEchoNormal.pth"
+    model_path = "assets/uvr5_weights/DeEchoNormal.pth"
     # pre_fun = _audio_pre_(model_path=model_path, device=device, is_half=True,agg=10)
     pre_fun = _audio_pre_new(model_path=model_path, device=device, is_half=True, agg=10)
     audio_path = "雪雪伴奏对消HP5.wav"

@@ -18,7 +18,7 @@ import torch
 import torch.nn.functional as F
 import soundfile as sf
 import numpy as np
-from fairseq import checkpoint_utils
+from lib.embedders.fairseq import load_model
 
 device = "cpu"
 if torch.cuda.is_available():
@@ -70,10 +70,7 @@ if os.access(model_path, os.F_OK) == False:
         % model_path
     )
     exit(0)
-models, saved_cfg, task = checkpoint_utils.load_model_ensemble_and_task(
-    [model_path],
-    suffix="",
-)
+models, saved_cfg, task = load_model(model_path)
 model = models[0]
 model = model.to(device)
 printt("move model to %s" % device)
