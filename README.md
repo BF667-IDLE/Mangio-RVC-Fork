@@ -1,7 +1,5 @@
-
-
 <div align="center">
-<h1>Mangio-RVC-Fork with v2 Support! 💻 </h1>
+<h1>Mangio RVC Fork V3 💻 </h1>
 A fork of an easy-to-use SVC framework based on VITS with top1 retrieval 💯. In general, this fork provides a CLI interface in addition. And also gives you more f0 methods to use, as well as a personlized 'hybrid' f0 estimation method using nanmedian. <br><br>
 <b> 
 
