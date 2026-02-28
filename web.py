@@ -28,7 +28,7 @@ import ffmpeg
 import gradio as gr
 import soundfile as sf
 from config import Config
-from lin.embedders.fairseq import load_model
+from lib.embedders.fairseq import load_model
 from i18n import I18nAuto
 from lib.infer_pack.models import (
     SynthesizerTrnMs256NSFsid,
@@ -2996,6 +2996,7 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
         )
 
 # endregion
+
 
 
 
