@@ -5,9 +5,9 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from lib.infer_pack import commons
-from lib.infer_pack import modules
-from lib.infer_pack.modules import LayerNorm
+from rvc.lib.infer_pack import commons
+from rvc.lib.infer_pack import modules
+from rvc.lib.infer_pack.modules import LayerNorm
 
 
 class Encoder(nn.Module):
@@ -415,3 +415,4 @@ class FFN(nn.Module):
         padding = [[0, 0], [0, 0], [pad_l, pad_r]]
         x = F.pad(x, commons.convert_pad_shape(padding))
         return x
+
