@@ -1,30 +1,23 @@
-import os
-import shutil
-import sys
-import json
-import math
-import signal
-import traceback
-import warnings
-import logging
-import threading
-import csv
-import re
+import os, shutil
+import sys, json
+import math, signal
+import traceback, warnings
+import logging, threading
+import csv, re
 from random import shuffle
 from subprocess import Popen
 from time import sleep
 from pathlib import Path
 
 import numpy as np
-import torch
-import faiss
+import torch, faiss
 import ffmpeg
 import gradio as gr
 import soundfile as sf
 import scipy.io.wavfile as wavfile
 
 from config import Config
-from lib.embedders.fairseq import load_model
+from rvc.lib.embedders.fairseq import load_model
 from i18n.i18n import I18nAuto
 from rvc.lib.infer_pack.models import (
     SynthesizerTrnMs256NSFsid,
@@ -1978,3 +1971,4 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
             quiet=False,
 
         )
+
