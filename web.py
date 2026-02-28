@@ -28,7 +28,7 @@ import ffmpeg
 import gradio as gr
 import soundfile as sf
 from config import Config
-from fairseq import checkpoint_utils
+from lin.embedders.fairseq import load_model
 from i18n import I18nAuto
 from lib.infer_pack.models import (
     SynthesizerTrnMs256NSFsid,
@@ -141,18 +141,9 @@ hubert_model = None
 
 
 def load_hubert():
-    global hubert_model
-    models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
-        ["hubert_base.pt"],
-        suffix="",
-    )
-    hubert_model = models[0]
-    hubert_model = hubert_model.to(config.device)
-    if config.is_half:
-        hubert_model = hubert_model.half()
-    else:
-        hubert_model = hubert_model.float()
-    hubert_model.eval()
+    #global hubert_model
+    models = load_model("hubert_base.pt")
+    
 
 
 weight_root = "weights"
@@ -3005,5 +2996,6 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
         )
 
 # endregion
+
 
 
