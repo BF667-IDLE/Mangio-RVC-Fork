@@ -25,7 +25,7 @@ import scipy.io.wavfile as wavfile
 
 from config import Config
 from lib.embedders.fairseq import load_model
-from i18n import I18nAuto
+from i18n.i18n import I18nAuto
 from rvc.lib.infer_pack.models import (
     SynthesizerTrnMs256NSFsid,
     SynthesizerTrnMs256NSFsid_nono,
@@ -1976,4 +1976,5 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
             inbrowser=not config.noautoopen,
             server_port=config.listen_port,
             quiet=False,
+
         )
