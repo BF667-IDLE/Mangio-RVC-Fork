@@ -43,7 +43,7 @@ def use_fp32_config():
                 print(f"Set fp16_run to true in {config_version}/{config_file}")
 
             with open(
-                "trainset_preprocess_pipeline_print.py", "r", encoding="utf-8"
+                "rvc/train/trainset_preprocess_pipeline_print.py", "r", encoding="utf-8"
             ) as f:
                 strr = f.read()
 
@@ -292,4 +292,5 @@ class Config:
                 self.configs[config_file] = {}
         
         return self.configs
+
 
