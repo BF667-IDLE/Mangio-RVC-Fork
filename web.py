@@ -16,7 +16,7 @@ import gradio as gr
 import soundfile as sf
 import scipy.io.wavfile as wavfile
 
-from configs.config import Config
+from rvc.configs.config import Config
 from rvc.lib.embedders.fairseq import load_model
 from i18n.i18n import I18nAuto
 from rvc.lib.infer_pack.models import (
@@ -1971,5 +1971,6 @@ with gr.Blocks(theme=gr.themes.Base(), title="MANGIO RVC WEB 💻") as app:
             quiet=False,
 
         )
+
 
 
